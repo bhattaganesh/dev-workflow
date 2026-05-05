@@ -366,12 +366,14 @@ async function main() {
   console.log(bold('  Shell — Zsh + autosuggestions'));
 
   if (isWindows) {
-    // Zsh is not a native Windows program — it needs WSL (Windows Subsystem for Linux).
-    // If WSL is already installed we set up zsh inside it.
-    // If not, we fall back to Git Bash and offer to enable WSL now.
+    console.log(gray('     Git Bash  — fast, native, no extra setup'));
+    console.log(gray('     Zsh (WSL) — full Zsh + Oh My Zsh, but slower on Windows drives'));
+    const shellChoice = await ask('     Choose terminal: [1] Git Bash  [2] Zsh via WSL  (default: 1): ');
+    const wantWSL = shellChoice.trim() === '2';
+
     const wslAvailable = existsSync('C:/Windows/System32/wsl.exe') && commandExists('wsl');
 
-    if (wslAvailable) {
+    if (wantWSL && wslAvailable) {
       log.done('WSL detected — setting up Zsh inside WSL');
 
       // Install zsh in WSL if missing
@@ -420,9 +422,9 @@ async function main() {
         setVSCodeTerminalWSL();
       }
 
-    } else {
-      // No WSL — use Git Bash as the terminal for now
-      log.warn('Zsh requires WSL on Windows — not yet installed on this machine.');
+    } else if (wantWSL && !wslAvailable) {
+      // User wants WSL but it isn't installed yet
+      log.warn('Zsh requires WSL — not yet installed on this machine.');
 
       let gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
       if (!gitBashPath) {
@@ -453,6 +455,21 @@ async function main() {
       } else {
         log.info('To enable WSL later: https://learn.microsoft.com/windows/wsl/install');
       }
+
+    } else {
+      // User chose Git Bash (fast, native)
+      let gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+      if (!gitBashPath) {
+        const installed = await tryInstall('Git for Windows (Git Bash)', {
+          wingetId   : 'Git.Git',
+          brewCask   : null,
+          downloadUrl: 'https://git-scm.com/download/win',
+        });
+        if (installed) gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+      } else {
+        log.done('Git Bash detected');
+      }
+      if (gitBashPath) setVSCodeTerminal('Git Bash', gitBashPath);
     }
 
   } else {
