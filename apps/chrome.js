@@ -35,7 +35,7 @@ export async function start(config) {
   }
 
   const execPath = getPath(cfg.execPath ?? {}) || getPath(DEFAULTS);
-  await launchApp(execPath);
+  launchApp(execPath);
   return { key };
 }
 

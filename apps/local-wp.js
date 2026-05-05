@@ -33,7 +33,7 @@ export async function start(config) {
       return null;
     }
     logger.info('Launching Local WP app...');
-    await launchApp(execPath);
+    launchApp(execPath);
     logger.info('Waiting for Local WP to initialise...');
     await sleep(3000);
   } else {
