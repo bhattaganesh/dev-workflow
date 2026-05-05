@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import * as logger from './lib/logger.js';
 import { load as loadConfig } from './lib/config.js';
 import { load as loadSession, clear as clearSession } from './lib/session.js';
@@ -30,7 +30,7 @@ async function main() {
   for (const key of stopOrder) {
     if (!startedKeys.has(key)) continue;
 
-    const mod = await import(resolve(ROOT, 'apps', `${key}.js`));
+    const mod = await import(pathToFileURL(resolve(ROOT, 'apps', `${key}.js`)).href);
     const label = mod.name ?? key;
 
     logger.step(`Closing ${label}`);
