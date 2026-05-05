@@ -5,7 +5,7 @@
       "enabled": true,
       "siteName": "masteriiyo",
       "execPath": {
-        "win32":  "C:/Program Files/Local/Local.exe",
+        "win32":  "C:/Program Files (x86)/Local/Local.exe",
         "darwin": "/Applications/Local.app",
         "linux":  ""
       }
