@@ -1,41 +1,51 @@
 /**
  * Microsoft Teams app module.
- * Supports new Teams (MSIX/Store) on Windows, and native installs on Mac/Linux.
+ * Uses the WindowsApps symlink path which works for new Teams (MSIX) on all Windows installs.
  * Skips launch if Teams is already running.
  *
  * config.json shape:
  *   "teams": { "enabled": true }
  */
 import { execa } from 'execa';
+import { spawn } from 'child_process';
+import { resolve } from 'path';
+import os from 'os';
 import { isRunning, isWindows, isMac } from '../lib/platform.js';
 import * as logger from '../lib/logger.js';
 
 export const name = 'Teams';
 export const key = 'teams';
 
-const PROCESS_NAME = { win32: 'ms-teams.exe', darwin: 'Microsoft Teams', linux: 'teams' };
+// WindowsApps symlink — present on all Windows 10/11 machines with new Teams installed
+const TEAMS_WIN_PATH = resolve(os.homedir(), 'AppData/Local/Microsoft/WindowsApps/ms-teams.exe');
 
 export async function start(config) {
   const cfg = config.apps?.teams;
   if (!cfg?.enabled) return null;
 
-  const procName = PROCESS_NAME[process.platform] ?? 'teams';
-  if (await isRunning(procName)) {
-    logger.info('Teams already open — skipping');
-    return null;
-  }
-
   if (isWindows) {
-    try {
-      await execa('explorer.exe', ['shell:AppsFolder\\MSTeams_8wekyb3d8bbwe!MSTeams']);
-    } catch {
-      await execa('cmd', ['/c', 'start', '', 'ms-teams://'], { shell: false });
+    const alreadyRunning = await isRunning('ms-teams.exe');
+    if (alreadyRunning) {
+      logger.info('Teams already open — skipping');
+      return null;
     }
+    const child = spawn(TEAMS_WIN_PATH, [], { detached: true, stdio: 'ignore' });
+    child.unref();
   } else if (isMac) {
+    const alreadyRunning = await isRunning('Microsoft Teams');
+    if (alreadyRunning) {
+      logger.info('Teams already open — skipping');
+      return null;
+    }
     await execa('open', ['-a', 'Microsoft Teams']);
   } else {
-    const sub = execa('teams', [], { detached: true, stdio: 'ignore' });
-    sub.unref();
+    const alreadyRunning = await isRunning('teams');
+    if (alreadyRunning) {
+      logger.info('Teams already open — skipping');
+      return null;
+    }
+    const child = spawn('teams', [], { detached: true, stdio: 'ignore' });
+    child.unref();
   }
 
   return { key };
