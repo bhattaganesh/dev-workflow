@@ -24,29 +24,32 @@ export async function start(config) {
   if (!cfg?.enabled) return null;
 
   if (isWindows) {
-    const alreadyRunning = await isRunning('ms-teams.exe');
-    if (alreadyRunning) {
-      logger.info('Teams already open — skipping');
-      return null;
-    }
-    // Launching via URI opens the UI immediately; spawning the exe starts it in the tray
+    const wasRunning = await isRunning('ms-teams.exe');
+    // Always fire the URI — launches Teams fresh OR brings tray instance to foreground
     const child = spawn('explorer.exe', ['ms-teams:'], { detached: true, stdio: 'ignore' });
     child.unref();
+    // Only track in session if we started it (so work-end only closes what we opened)
+    if (wasRunning) {
+      logger.info('Teams brought to foreground');
+      return null;
+    }
   } else if (isMac) {
-    const alreadyRunning = await isRunning('Microsoft Teams');
-    if (alreadyRunning) {
-      logger.info('Teams already open — skipping');
-      return null;
-    }
+    const wasRunning = await isRunning('Microsoft Teams');
     await execa('open', ['-a', 'Microsoft Teams']);
-  } else {
-    const alreadyRunning = await isRunning('teams');
-    if (alreadyRunning) {
-      logger.info('Teams already open — skipping');
+    if (wasRunning) {
+      logger.info('Teams brought to foreground');
       return null;
     }
-    const child = spawn('teams', [], { detached: true, stdio: 'ignore' });
-    child.unref();
+  } else {
+    const wasRunning = await isRunning('teams');
+    if (!wasRunning) {
+      const child = spawn('teams', [], { detached: true, stdio: 'ignore' });
+      child.unref();
+    }
+    if (wasRunning) {
+      logger.info('Teams brought to foreground');
+      return null;
+    }
   }
 
   return { key };
