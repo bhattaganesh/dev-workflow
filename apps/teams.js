@@ -29,7 +29,8 @@ export async function start(config) {
       logger.info('Teams already open — skipping');
       return null;
     }
-    const child = spawn(TEAMS_WIN_PATH, [], { detached: true, stdio: 'ignore' });
+    // Launching via URI opens the UI immediately; spawning the exe starts it in the tray
+    const child = spawn('explorer.exe', ['ms-teams:'], { detached: true, stdio: 'ignore' });
     child.unref();
   } else if (isMac) {
     const alreadyRunning = await isRunning('Microsoft Teams');

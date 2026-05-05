@@ -125,7 +125,7 @@ async function callLocalApi(action, siteName) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: apiCfg.authToken,
+        Authorization: `Bearer ${apiCfg.authToken}`,
       },
       body: JSON.stringify({ query: mutation }),
     });
