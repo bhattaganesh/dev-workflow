@@ -10,14 +10,21 @@
  *   }
  */
 import { execa } from 'execa';
+import { resolve } from 'path';
+import os from 'os';
 import { getPath, launchApp, isRunning, isWindows, isMac } from '../lib/platform.js';
 import * as logger from '../lib/logger.js';
 
 export const name = 'Chrome';
 export const key = 'chrome';
 
+// Array values: getPath() picks the first path that exists on disk,
+// covering both system-level and user-level Chrome installs.
 const DEFAULTS = {
-  win32: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  win32: [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    resolve(os.homedir(), 'AppData/Local/Google/Chrome/Application/chrome.exe'),
+  ],
   darwin: '/Applications/Google Chrome.app',
   linux: 'google-chrome',
 };

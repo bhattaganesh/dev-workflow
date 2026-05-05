@@ -40,6 +40,7 @@ No manual JSON editing required.
 | Chrome path | auto-detected, just press Enter |
 | Include Teams? | `Y` |
 | VSCode project paths | `/Users/you/projects/my-app` (one per line, blank to finish) |
+| Install Oh My Zsh + autosuggestions? | `Y` — sets Zsh as VSCode default terminal too |
 
 ---
 
@@ -93,6 +94,8 @@ That's it — no changes to the orchestrators needed.
 | `npm link` needs sudo (Mac/Linux) | `sudo npm link` or use nvm/fnm |
 | App doesn't open | Re-run `node setup.js` and correct the path |
 | Local WP site doesn't start | Site names must match exactly what's shown in the Local app (re-run `node setup.js` to correct them) |
+| Zsh autosuggestions not working | Open a new terminal tab after setup — Oh My Zsh only activates in new sessions |
+| `code` not found after VSCode install (Windows) | Open VSCode → Command Palette → "Shell Command: Install 'code' command in PATH" |
 
 ---
 
