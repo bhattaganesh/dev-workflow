@@ -191,6 +191,27 @@ const GIT_BASH_PATHS = [
   resolve(os.homedir(), 'AppData/Local/Programs/Git/bin/bash.exe'),
 ];
 
+/** Write WSL terminal profile as VSCode default (Windows only). */
+function setVSCodeTerminalWSL() {
+  const settingsPath = resolve(os.homedir(), 'AppData/Roaming/Code/User/settings.json');
+  const dir = dirname(settingsPath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  let settings = {};
+  if (existsSync(settingsPath)) {
+    try { settings = JSON.parse(readFileSync(settingsPath, 'utf8')); } catch {}
+  }
+
+  settings['terminal.integrated.profiles.windows'] ??= {};
+  settings['terminal.integrated.profiles.windows']['WSL'] = {
+    source: 'Windows Subsystem for Linux',
+  };
+  settings['terminal.integrated.defaultProfile.windows'] = 'WSL';
+
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  log.done('VSCode default terminal → WSL (Zsh)');
+}
+
 /** Write terminal profile + default into VSCode's user settings.json. */
 function setVSCodeTerminal(shellName, shellPath) {
   const settingsPath = isWindows
@@ -345,26 +366,94 @@ async function main() {
   console.log(bold('  Shell — Zsh + autosuggestions'));
 
   if (isWindows) {
-    // Windows: use Git Bash (ships with Git for Windows). Full zsh requires WSL.
-    let gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+    // Zsh is not a native Windows program — it needs WSL (Windows Subsystem for Linux).
+    // If WSL is already installed we set up zsh inside it.
+    // If not, we fall back to Git Bash and offer to enable WSL now.
+    const wslAvailable = existsSync('C:/Windows/System32/wsl.exe') && commandExists('wsl');
 
-    if (!gitBashPath) {
-      const installed = await tryInstall('Git for Windows (Git Bash)', {
-        wingetId   : 'Git.Git',
-        brewCask   : null,
-        downloadUrl: 'https://git-scm.com/download/win',
-      });
-      if (installed) gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+    if (wslAvailable) {
+      log.done('WSL detected — setting up Zsh inside WSL');
+
+      // Install zsh in WSL if missing
+      let wslHasZsh = false;
+      try {
+        execSync('wsl which zsh', { stdio: 'ignore' });
+        wslHasZsh = true;
+        log.done('Zsh already installed in WSL');
+      } catch {}
+
+      if (!wslHasZsh) {
+        log.step('Installing Zsh inside WSL…');
+        try {
+          execSync('wsl bash -c "sudo apt-get update -qq && sudo apt-get install -y zsh"', { stdio: 'inherit' });
+          wslHasZsh = true;
+          log.done('Zsh installed in WSL');
+        } catch {
+          log.warn('Could not auto-install Zsh in WSL.');
+          log.info('Run manually inside WSL: sudo apt-get install -y zsh');
+        }
+      }
+
+      if (wslHasZsh) {
+        const omzAns = await ask('     Install Oh My Zsh + autosuggestions in WSL? [Y/n]: ');
+        if (omzAns.trim().toLowerCase() !== 'n') {
+          try {
+            execSync(
+              'wsl bash -c "[ -d ~/.oh-my-zsh ] || sh -c \'$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\' \'\' --unattended"',
+              { stdio: 'inherit' }
+            );
+            execSync(
+              'wsl bash -c "[ -d ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions ] || git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions"',
+              { stdio: 'inherit' }
+            );
+            execSync(
+              'wsl bash -c "grep -q zsh-autosuggestions ~/.zshrc || echo \'plugins+=(zsh-autosuggestions)\' >> ~/.zshrc"',
+              { stdio: 'ignore' }
+            );
+            log.done('Oh My Zsh + autosuggestions installed in WSL');
+          } catch (err) {
+            log.warn(`Oh My Zsh install failed: ${err.message}`);
+            log.info('Install manually inside WSL: https://ohmyz.sh/#install');
+          }
+        }
+
+        setVSCodeTerminalWSL();
+      }
+
     } else {
-      log.done('Git Bash detected');
-    }
+      // No WSL — use Git Bash as the terminal for now
+      log.warn('Zsh requires WSL on Windows — not yet installed on this machine.');
 
-    if (gitBashPath) {
-      setVSCodeTerminal('Git Bash', gitBashPath);
-    }
+      let gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+      if (!gitBashPath) {
+        const installed = await tryInstall('Git for Windows (Git Bash)', {
+          wingetId   : 'Git.Git',
+          brewCask   : null,
+          downloadUrl: 'https://git-scm.com/download/win',
+        });
+        if (installed) gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
+      } else {
+        log.done('Git Bash detected (temporary terminal until WSL is ready)');
+      }
 
-    log.info('For full Zsh + Oh My Zsh on Windows, enable WSL:');
-    log.info('  https://learn.microsoft.com/windows/wsl/install');
+      if (gitBashPath) setVSCodeTerminal('Git Bash', gitBashPath);
+
+      const wslAns = await ask('     Enable WSL now for Zsh support? (requires a restart) [Y/n]: ');
+      if (wslAns.trim().toLowerCase() !== 'n') {
+        try {
+          log.step('Running wsl --install (this may open a new window)…');
+          execSync('wsl --install', { stdio: 'inherit' });
+          log.done('WSL install started');
+          log.warn('Restart your PC, then re-run node setup.js to finish Zsh setup.');
+        } catch {
+          log.warn('wsl --install failed — run it manually in an admin terminal:');
+          log.info('  PowerShell (Admin): wsl --install');
+          log.info('  Or visit: https://learn.microsoft.com/windows/wsl/install');
+        }
+      } else {
+        log.info('To enable WSL later: https://learn.microsoft.com/windows/wsl/install');
+      }
+    }
 
   } else {
     // Mac / Linux
