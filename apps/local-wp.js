@@ -12,11 +12,13 @@
  *   }
  */
 import { execa } from 'execa';
-import { getPath, launchApp, closeApp, isRunning, sleep } from '../lib/platform.js';
+import { getPath, launchApp, closeApp, isRunning, isWindows, sleep } from '../lib/platform.js';
 import * as logger from '../lib/logger.js';
 
 export const name = 'Local WP';
 export const key = 'local-wp';
+
+const SITE_START_TIMEOUT_MS = 60_000;
 
 export async function start(config) {
   const cfg = config.apps?.[key];
@@ -30,10 +32,10 @@ export async function start(config) {
       logger.warn('Local WP: execPath not set in config.json — skipping');
       return null;
     }
-    logger.step('Launching Local WP');
+    logger.info('Launching Local WP app...');
     await launchApp(execPath);
-    // Give Local WP time to initialise before we try to start the site
-    await sleep(5000);
+    logger.info('Waiting for Local WP to initialise...');
+    await sleep(3000);
   } else {
     logger.info('Local WP already running');
   }
@@ -49,12 +51,12 @@ export async function stop(_session, config) {
   const cfg = config.apps?.[key];
   if (!cfg?.enabled) return;
 
-  if (cfg.siteName) {
+  if (cfg.siteName && (await localCliAvailable())) {
     try {
-      await execa('local-cli', ['stop', cfg.siteName]);
+      await execa('local-cli', ['stop', cfg.siteName], { timeout: 15_000 });
       logger.done(`Site "${cfg.siteName}" stopped`);
     } catch {
-      // local-cli not available — closing the app will stop it
+      // Closing the app will stop the site anyway
     }
   }
 
@@ -63,11 +65,31 @@ export async function stop(_session, config) {
 }
 
 async function startSite(siteName) {
+  if (!(await localCliAvailable())) {
+    logger.warn('local-cli not found — start the site manually in Local WP.');
+    logger.info('Install once with: npm install -g @getflywheel/local-cli');
+    return;
+  }
+
+  logger.info(`Starting site "${siteName}" via local-cli (may take ~30s)...`);
   try {
-    await execa('local-cli', ['start', siteName]);
+    await execa('local-cli', ['start', siteName], { timeout: SITE_START_TIMEOUT_MS });
     logger.done(`Site "${siteName}" is live`, `${siteName}.local`);
+  } catch (err) {
+    if (err.timedOut) {
+      logger.warn(`Site start timed out — start "${siteName}" manually in Local WP.`);
+    } else {
+      logger.warn(`local-cli error: ${err.message}`);
+    }
+  }
+}
+
+async function localCliAvailable() {
+  try {
+    const cmd = isWindows ? 'where' : 'which';
+    await execa(cmd, ['local-cli']);
+    return true;
   } catch {
-    logger.warn(`local-cli not found — site must be started manually.`);
-    logger.info(`Install once with: npm install -g @getflywheel/local-cli`);
+    return false;
   }
 }
