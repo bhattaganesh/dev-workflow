@@ -44,9 +44,21 @@ const log = {
 const rl  = createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => rl.question(q);
 
-/** Return first path in list that actually exists on disk. */
-function detect(paths) {
-  return paths.find((p) => existsSync(p)) ?? null;
+/**
+ * Return the first path that exists on disk.
+ * Falls back to `where <exeName>` (Windows) or `which <exeName>` (Mac/Linux)
+ * so apps installed to non-standard locations are still found.
+ */
+function detectOnDisk(paths, exeName = null) {
+  const byPath = paths.find((p) => existsSync(p));
+  if (byPath) return byPath;
+  if (!exeName) return null;
+  try {
+    const cmd = isWindows ? `where "${exeName}"` : `which "${exeName}"`;
+    const result = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const first  = result.split(/\r?\n/)[0].trim();
+    return first || null;
+  } catch { return null; }
 }
 
 /** Check if a CLI command is available in PATH. */
@@ -122,6 +134,8 @@ const PATHS = {
       'C:/Program Files (x86)/Local/Local.exe',
       'C:/Program Files/Local/Local.exe',
       resolve(os.homedir(), 'AppData/Local/Programs/local/Local.exe'),
+      resolve(os.homedir(), 'AppData/Local/Local/Local.exe'),
+      resolve(os.homedir(), 'AppData/Roaming/Local/Local.exe'),
     ],
     darwin: ['/Applications/Local.app'],
     linux : [],
@@ -134,6 +148,16 @@ const PATHS = {
     ],
     darwin: ['/Applications/Google Chrome.app'],
     linux : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'],
+  },
+  teams: {
+    win32 : [
+      resolve(os.homedir(), 'AppData/Local/Microsoft/WindowsApps/ms-teams.exe'),
+      resolve(os.homedir(), 'AppData/Local/Microsoft/Teams/current/Teams.exe'),
+      resolve(os.homedir(), 'AppData/Local/Microsoft/Teams/Teams.exe'),
+      'C:/Program Files/WindowsApps/MSTeams/ms-teams.exe',
+    ],
+    darwin: ['/Applications/Microsoft Teams.app', '/Applications/Microsoft Teams (work or school).app'],
+    linux : ['/usr/bin/teams', '/usr/bin/teams-for-linux'],
   },
 };
 
@@ -218,11 +242,11 @@ async function main() {
 
   // ── Local WP ──────────────────────────────────────────────────────────────
   console.log(bold('  Local WP'));
-  let detectedLocal = detect(PATHS.localWp[process.platform] ?? []);
+  let detectedLocal = detectOnDisk(PATHS.localWp[process.platform] ?? [], 'Local.exe');
 
   if (!detectedLocal) {
     await tryInstall('Local WP', INSTALL.localWp);
-    detectedLocal = detect(PATHS.localWp[process.platform] ?? []);
+    detectedLocal = detectOnDisk(PATHS.localWp[process.platform] ?? [], 'Local.exe');
   }
 
   const localPath = await confirmPath('Local WP', detectedLocal);
@@ -251,11 +275,11 @@ async function main() {
 
   // ── Chrome ────────────────────────────────────────────────────────────────
   console.log(bold('  Chrome'));
-  let detectedChrome = detect(PATHS.chrome[process.platform] ?? []);
+  let detectedChrome = detectOnDisk(PATHS.chrome[process.platform] ?? [], 'chrome.exe');
 
   if (!detectedChrome) {
     const installed = await tryInstall('Chrome', INSTALL.chrome);
-    if (installed) detectedChrome = detect(PATHS.chrome[process.platform] ?? []);
+    if (installed) detectedChrome = detectOnDisk(PATHS.chrome[process.platform] ?? [], 'chrome.exe');
   }
 
   const chromePath = await confirmPath('Chrome', detectedChrome);
@@ -272,12 +296,12 @@ async function main() {
 
   // ── Teams ─────────────────────────────────────────────────────────────────
   console.log(bold('  Microsoft Teams'));
-  const teamsWinPath = resolve(os.homedir(), 'AppData/Local/Microsoft/WindowsApps/ms-teams.exe');
-  let teamsDetected  = isWindows ? existsSync(teamsWinPath) : isMac;
+  const teamsExe     = isWindows ? 'ms-teams.exe' : isMac ? null : 'teams';
+  let teamsDetected  = !!detectOnDisk(PATHS.teams[process.platform] ?? [], teamsExe);
 
   if (!teamsDetected) {
     const installed = await tryInstall('Microsoft Teams', INSTALL.teams);
-    if (installed) teamsDetected = isWindows ? existsSync(teamsWinPath) : isMac;
+    if (installed) teamsDetected = !!detectOnDisk(PATHS.teams[process.platform] ?? [], teamsExe);
   } else {
     log.done('Teams detected');
   }
@@ -322,7 +346,7 @@ async function main() {
 
   if (isWindows) {
     // Windows: use Git Bash (ships with Git for Windows). Full zsh requires WSL.
-    let gitBashPath = detect(GIT_BASH_PATHS);
+    let gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
 
     if (!gitBashPath) {
       const installed = await tryInstall('Git for Windows (Git Bash)', {
@@ -330,7 +354,7 @@ async function main() {
         brewCask   : null,
         downloadUrl: 'https://git-scm.com/download/win',
       });
-      if (installed) gitBashPath = detect(GIT_BASH_PATHS);
+      if (installed) gitBashPath = detectOnDisk(GIT_BASH_PATHS, 'bash.exe');
     } else {
       log.done('Git Bash detected');
     }
