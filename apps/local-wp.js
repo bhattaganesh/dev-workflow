@@ -11,7 +11,7 @@
  * config.json shape:
  *   "local-wp": {
  *     "enabled": true,
- *     "siteName": "Masteriiyo",
+ *     "siteNames": ["masteriiyo", "another-site"],
  *     "execPath": { "win32": "...", "darwin": "...", "linux": "" }
  *   }
  */
@@ -44,8 +44,9 @@ export async function start(config) {
     logger.info('Local WP already running');
   }
 
-  if (cfg.siteName) {
-    await startSite(cfg.siteName);
+  const siteNames = normaliseSiteNames(cfg);
+  for (const site of siteNames) {
+    await startSite(site);
   }
 
   return { key };
@@ -55,13 +56,23 @@ export async function stop(_session, config) {
   const cfg = config.apps?.[key];
   if (!cfg?.enabled) return;
 
-  if (cfg.siteName) {
-    const stopped = await callLocalApi('stop', cfg.siteName);
-    if (stopped) logger.done(`Site "${cfg.siteName}" stopped`);
+  const siteNames = normaliseSiteNames(cfg);
+  for (const site of siteNames) {
+    const stopped = await callLocalApi('stop', site);
+    if (stopped) logger.done(`Site "${site}" stopped`);
   }
 
   await closeApp({ win: 'Local.exe', mac: 'Local', linux: 'local' });
   logger.done('Local WP closed');
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Accept both old `siteName: "foo"` and new `siteNames: ["foo","bar"]` shapes. */
+function normaliseSiteNames(cfg) {
+  if (Array.isArray(cfg.siteNames) && cfg.siteNames.length) return cfg.siteNames;
+  if (cfg.siteName) return [cfg.siteName];
+  return [];
 }
 
 // ─── Local WP GraphQL API ────────────────────────────────────────────────────

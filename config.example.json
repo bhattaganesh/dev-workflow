@@ -3,7 +3,7 @@
   "apps": {
     "local-wp": {
       "enabled": true,
-      "siteName": "masteriiyo",
+      "siteNames": ["masteriiyo"],
       "execPath": {
         "win32":  "C:/Program Files (x86)/Local/Local.exe",
         "darwin": "/Applications/Local.app",

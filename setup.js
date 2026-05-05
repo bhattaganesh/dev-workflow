@@ -94,16 +94,22 @@ async function main() {
   const detectedLocal = detect(PATHS.localWp[process.platform] ?? []);
   const localPath     = await confirmPath('Local WP', detectedLocal);
 
-  let siteName = '';
+  const siteNames = [];
   if (localPath) {
-    siteName = (await ask(`     Site name shown in Local WP app: `)).trim();
+    console.log(gray('     Enter site names one by one (as shown in Local WP). Leave blank when done.'));
+    for (let i = 1; ; i++) {
+      const s = (await ask(`     Site ${i} name: `)).trim();
+      if (!s) break;
+      siteNames.push(s);
+      log.done(`Added: ${gray(s)}`);
+    }
   }
   log.nl();
 
   config.apps['local-wp'] = {
-    enabled : !!localPath,
-    siteName: siteName,
-    execPath: {
+    enabled  : !!localPath && siteNames.length > 0,
+    siteNames: siteNames,
+    execPath : {
       win32 : isWindows ? (localPath ?? '') : 'C:/Program Files (x86)/Local/Local.exe',
       darwin: isMac     ? (localPath ?? '') : '/Applications/Local.app',
       linux : isLinux   ? (localPath ?? '') : '',

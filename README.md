@@ -36,10 +36,10 @@ No manual JSON editing required.
 | Question | Example answer |
 |---|---|
 | Local WP path | auto-detected, just press Enter |
-| Site name | `Masteriiyo` |
+| Site names | `masteriiyo`, `my-other-site` … (one per line, blank to finish) |
 | Chrome path | auto-detected, just press Enter |
 | Include Teams? | `Y` |
-| VSCode project paths | `/Users/you/projects/my-app` (one per line) |
+| VSCode project paths | `/Users/you/projects/my-app` (one per line, blank to finish) |
 
 ---
 
@@ -92,7 +92,7 @@ That's it — no changes to the orchestrators needed.
 | `npm link` needs admin (Windows) | Run terminal as Administrator, then `node setup.js` again |
 | `npm link` needs sudo (Mac/Linux) | `sudo npm link` or use nvm/fnm |
 | App doesn't open | Re-run `node setup.js` and correct the path |
-| Local WP site doesn't start | Make sure the site name matches exactly what's shown in the Local app |
+| Local WP site doesn't start | Site names must match exactly what's shown in the Local app (re-run `node setup.js` to correct them) |
 
 ---
 
