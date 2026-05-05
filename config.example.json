@@ -1,0 +1,32 @@
+{
+  "_instructions": "Copy this file to config.json and fill in YOUR paths. config.json is gitignored — never commit it.",
+  "apps": {
+    "local-wp": {
+      "enabled": true,
+      "siteName": "masteriiyo",
+      "execPath": {
+        "win32":  "C:/Program Files/Local/Local.exe",
+        "darwin": "/Applications/Local.app",
+        "linux":  ""
+      }
+    },
+    "chrome": {
+      "enabled": true,
+      "execPath": {
+        "win32":  "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "darwin": "/Applications/Google Chrome.app",
+        "linux":  "google-chrome"
+      }
+    },
+    "teams": {
+      "enabled": true
+    },
+    "vscode": {
+      "enabled": true,
+      "projects": [
+        "/absolute/path/to/learning-management-system",
+        "/absolute/path/to/learning-management-system-pro"
+      ]
+    }
+  }
+}

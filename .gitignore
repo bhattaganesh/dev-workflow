@@ -1,0 +1,4 @@
+node_modules/
+
+# Machine-specific config — each developer fills in their own
+config.json

@@ -1,0 +1,22 @@
+{
+  "name": "dev-workflow",
+  "version": "1.0.0",
+  "description": "Cross-platform dev workflow automation — spin up your entire dev environment with one command",
+  "type": "module",
+  "bin": {
+    "work-start": "./work-start.js",
+    "work-end": "./work-end.js"
+  },
+  "scripts": {
+    "setup": "node setup.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "execa": "^8.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["workflow", "automation", "developer-tools", "cross-platform"],
+  "license": "MIT"
+}
