@@ -1,112 +1,76 @@
 # dev-workflow
 
-Cross-platform dev workflow automation. One command spins up your entire dev environment — Local WP (+ site auto-start), Chrome, Teams, and VSCode. Another shuts it all down gracefully.
-
-Works in **CMD**, **Git Bash**, **PowerShell**, **Terminal (Mac)**, and any Linux shell.
+One command to start your entire dev environment. Another to shut it all down.
 
 ```
-work-start   →  boots everything
-work-end     →  closes everything that was opened
+work-start   →  Local WP + site, Chrome, Teams, VSCode — all up
+work-end     →  everything closed gracefully
 ```
+
+Works in **any terminal** — CMD, Git Bash, PowerShell, Terminal (Mac), Linux shell.  
+Works on **any OS** — Windows, macOS, Linux.
 
 ---
 
-## Requirements
-
-- [Node.js](https://nodejs.org) ≥ 18
-- Apps you want to automate installed on the machine
-
----
-
-## Setup (any OS, one time)
+## Setup (3 steps)
 
 ```bash
+# 1. Clone
 git clone https://github.com/bhattaganesh/dev-workflow.git
 cd dev-workflow
+
+# 2. Run the wizard — it finds your apps and asks a few questions
 node setup.js
+
+# 3. Done. Open a new terminal and try it
+work-start
 ```
 
-`setup.js` will:
-1. Install npm dependencies
-2. Create `config.json` from the template
-3. Link `work-start` / `work-end` globally via `npm link`
+The wizard auto-detects your app paths and writes `config.json` for you.  
+No manual JSON editing required.
 
-Then edit `config.json` with your machine's app paths:
+---
 
-```bash
-# Mac/Linux
-open config.json
+## What the wizard asks
 
-# Windows
-notepad config.json
+| Question | Example answer |
+|---|---|
+| Local WP path | auto-detected, just press Enter |
+| Site name | `Masteriiyo` |
+| Chrome path | auto-detected, just press Enter |
+| Include Teams? | `Y` |
+| VSCode project paths | `/Users/you/projects/my-app` (one per line) |
+
+---
+
+## How it works
+
+```
+work-start
+  └── reads config.json
+  └── for each app (in order): checks if already running → starts if not
+  └── Local WP: starts app + triggers site via Local's built-in API
+  └── saves ~/.dev-workflow-session.json
+
+work-end
+  └── reads session file → closes only what work-start opened
+  └── runs in reverse order (VSCode → Teams → Chrome → Local WP + site)
+  └── deletes session file
 ```
 
 ---
 
-## Config
+## Adding a new app
 
-`config.json` is **gitignored** — it's yours, never committed.  
-`config.example.json` is the template that's committed for everyone to copy.
-
-```jsonc
-{
-  "apps": {
-    "local-wp": {
-      "enabled": true,
-      "siteName": "your-site-name",       // name shown in Local WP
-      "execPath": {
-        "win32":  "C:/Program Files/Local/Local.exe",
-        "darwin": "/Applications/Local.app",
-        "linux":  ""
-      }
-    },
-    "chrome": {
-      "enabled": true,
-      "execPath": {
-        "win32":  "C:/Program Files/Google/Chrome/Application/chrome.exe",
-        "darwin": "/Applications/Google Chrome.app",
-        "linux":  "google-chrome"
-      }
-    },
-    "teams":  { "enabled": true },
-    "vscode": {
-      "enabled": true,
-      "projects": [
-        "/absolute/path/to/project-a",
-        "/absolute/path/to/project-b"
-      ]
-    }
-  }
-}
-```
-
-Set `"enabled": false` to skip any app.
-
----
-
-## Local WP — auto site start
-
-Site start/stop uses [`local-cli`](https://www.npmjs.com/package/@getflywheel/local-cli). Install it once globally:
-
-```bash
-npm install -g @getflywheel/local-cli
-```
-
-Without it, `work-start` still opens the Local WP app — you just start the site manually. Everything else works fine.
-
----
-
-## Adding a New App
-
-1. Create `apps/your-app.js` — must export these four things:
+1. Create `apps/your-app.js`:
 
 ```js
-export const name = 'Your App';    // display label
-export const key  = 'your-app';   // must match config.json key
+export const name = 'Your App';
+export const key  = 'your-app';
 
 export async function start(config) {
   // launch the app
-  // return { key } on success, or null to skip session tracking
+  return { key };   // return null to skip session tracking
 }
 
 export async function stop(session, config) {
@@ -116,25 +80,7 @@ export async function stop(session, config) {
 
 2. Add `'your-app'` to `APP_KEYS` in `apps-registry.js`
 
-3. Add the app block to `config.example.json`
-
-That's it. No changes to the orchestrators needed.
-
----
-
-## How it works
-
-```
-work-start
-  └── reads config.json
-  └── loops APP_KEYS in order → calls start(config) on each module
-  └── saves ~/.dev-workflow-session.json  (tracks what was opened)
-
-work-end
-  └── reads session.json  (only closes what work-start actually opened)
-  └── loops APP_KEYS in reverse → calls stop(session, config)
-  └── deletes session.json
-```
+That's it — no changes to the orchestrators needed.
 
 ---
 
@@ -142,11 +88,11 @@ work-end
 
 | Problem | Fix |
 |---|---|
-| `work-start: command not found` | Re-run `node setup.js` or add the folder to your PATH |
-| `npm link` needs sudo (Mac/Linux) | `sudo npm link` or use a Node version manager (nvm/fnm) |
-| App doesn't open | Check the `execPath` in `config.json` for your OS |
-| Local WP site doesn't auto-start | Install `local-cli`: `npm i -g @getflywheel/local-cli` |
-| Wrong Teams version launched | Edit `apps/teams.js` — both new and classic Teams are handled |
+| `work-start: command not found` | Re-run `node setup.js` |
+| `npm link` needs admin (Windows) | Run terminal as Administrator, then `node setup.js` again |
+| `npm link` needs sudo (Mac/Linux) | `sudo npm link` or use nvm/fnm |
+| App doesn't open | Re-run `node setup.js` and correct the path |
+| Local WP site doesn't start | Make sure the site name matches exactly what's shown in the Local app |
 
 ---
 
