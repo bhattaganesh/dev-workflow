@@ -1,6 +1,7 @@
 /**
  * Google Chrome app module.
  * Launches Chrome and restores its last session automatically.
+ * Skips launch if Chrome is already running.
  *
  * config.json shape:
  *   "chrome": {
@@ -9,7 +10,8 @@
  *   }
  */
 import { execa } from 'execa';
-import { getPath, launchApp, isWindows, isMac } from '../lib/platform.js';
+import { getPath, launchApp, isRunning, isWindows, isMac } from '../lib/platform.js';
+import * as logger from '../lib/logger.js';
 
 export const name = 'Chrome';
 export const key = 'chrome';
@@ -20,9 +22,17 @@ const DEFAULTS = {
   linux: 'google-chrome',
 };
 
+const PROCESS_NAME = { win32: 'chrome.exe', darwin: 'Google Chrome', linux: 'chrome' };
+
 export async function start(config) {
   const cfg = config.apps?.chrome;
   if (!cfg?.enabled) return null;
+
+  const procName = PROCESS_NAME[process.platform] ?? 'chrome';
+  if (await isRunning(procName)) {
+    logger.info('Chrome already open — skipping');
+    return null;
+  }
 
   const execPath = getPath(cfg.execPath ?? {}) || getPath(DEFAULTS);
   await launchApp(execPath);

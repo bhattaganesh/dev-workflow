@@ -1,15 +1,16 @@
 /**
  * Visual Studio Code app module.
  * Opens each configured project in its own VSCode window.
+ * Skips launch if VSCode is already running.
  *
  * config.json shape:
  *   "vscode": {
  *     "enabled": true,
- *     "projects": ["/path/to/project-a", "/path/to/project-b"]
+ *     "projects": ["/absolute/path/to/project-a", "/absolute/path/to/project-b"]
  *   }
  */
 import { execa } from 'execa';
-import { isWindows, isMac, sleep } from '../lib/platform.js';
+import { isRunning, isWindows, isMac, sleep } from '../lib/platform.js';
 import * as logger from '../lib/logger.js';
 
 export const name = 'VSCode';
@@ -25,11 +26,15 @@ export async function start(config) {
     return null;
   }
 
+  const alreadyRunning = await isRunning('Code.exe');
+  if (alreadyRunning) {
+    logger.info('VSCode already open — opening projects in new windows');
+  }
+
   for (const projectPath of projects) {
     try {
-      // -n opens each project in a new window
       await execa('code', ['-n', projectPath]);
-      await sleep(600); // small gap so windows don't stack on top of each other
+      await sleep(600);
     } catch {
       logger.warn(`VSCode: could not open ${projectPath} — is "code" in your PATH?`);
     }
@@ -44,7 +49,6 @@ export async function stop(_session, config) {
 
   try {
     if (isWindows) {
-      // Without /F, VSCode receives a normal close and prompts to save unsaved files
       await execa('taskkill', ['/IM', 'Code.exe']);
     } else if (isMac) {
       await execa('osascript', ['-e', 'quit app "Visual Studio Code"']);
