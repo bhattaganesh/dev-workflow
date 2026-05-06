@@ -191,60 +191,6 @@ const GIT_BASH_PATHS = [
   resolve(os.homedir(), 'AppData/Local/Programs/Git/bin/bash.exe'),
 ];
 
-/** Write WSL terminal profile as VSCode default (Windows only). */
-function setVSCodeTerminalWSL() {
-  const settingsPath = resolve(os.homedir(), 'AppData/Roaming/Code/User/settings.json');
-  const dir = dirname(settingsPath);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-  let settings = {};
-  if (existsSync(settingsPath)) {
-    try { settings = JSON.parse(readFileSync(settingsPath, 'utf8')); } catch {}
-  }
-
-  settings['terminal.integrated.profiles.windows'] ??= {};
-  settings['terminal.integrated.profiles.windows']['WSL'] = {
-    source: 'Windows Subsystem for Linux',
-  };
-  settings['terminal.integrated.defaultProfile.windows'] = 'WSL';
-
-  writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  log.done('VSCode default terminal → WSL (Zsh)');
-}
-
-/** Write terminal profile + default into VSCode's user settings.json. */
-function setVSCodeTerminal(shellName, shellPath) {
-  const settingsPath = isWindows
-    ? resolve(os.homedir(), 'AppData/Roaming/Code/User/settings.json')
-    : isMac
-      ? resolve(os.homedir(), 'Library/Application Support/Code/User/settings.json')
-      : resolve(os.homedir(), '.config/Code/User/settings.json');
-
-  const dir = dirname(settingsPath);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-  let settings = {};
-  if (existsSync(settingsPath)) {
-    try { settings = JSON.parse(readFileSync(settingsPath, 'utf8')); } catch {}
-  }
-
-  if (isWindows) {
-    settings['terminal.integrated.profiles.windows'] ??= {};
-    settings['terminal.integrated.profiles.windows']['Git Bash'] = { source: 'Git Bash' };
-    settings['terminal.integrated.defaultProfile.windows'] = 'Git Bash';
-  } else if (isMac) {
-    settings['terminal.integrated.profiles.osx'] ??= {};
-    settings['terminal.integrated.profiles.osx']['zsh'] = { path: shellPath };
-    settings['terminal.integrated.defaultProfile.osx'] = 'zsh';
-  } else {
-    settings['terminal.integrated.profiles.linux'] ??= {};
-    settings['terminal.integrated.profiles.linux']['zsh'] = { path: shellPath };
-    settings['terminal.integrated.defaultProfile.linux'] = 'zsh';
-  }
-
-  writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  log.done(`VSCode default terminal → ${shellName}`);
-}
 
 // ── Main wizard ───────────────────────────────────────────────────────────────
 async function main() {
@@ -419,7 +365,9 @@ async function main() {
           }
         }
 
-        setVSCodeTerminalWSL();
+        log.info('To set WSL as your VSCode terminal, add this to VSCode settings.json (Ctrl+Shift+P → "Open User Settings JSON"):');
+        log.info('  "terminal.integrated.profiles.windows": { "WSL": { "source": "Windows Subsystem for Linux" } },');
+        log.info('  "terminal.integrated.defaultProfile.windows": "WSL"');
       }
 
     } else if (wantWSL && !wslAvailable) {
@@ -438,7 +386,11 @@ async function main() {
         log.done('Git Bash detected (temporary terminal until WSL is ready)');
       }
 
-      if (gitBashPath) setVSCodeTerminal('Git Bash', gitBashPath);
+      if (gitBashPath) {
+        log.info('To set Git Bash as your VSCode terminal, add this to VSCode settings.json (Ctrl+Shift+P → "Open User Settings JSON"):');
+        log.info('  "terminal.integrated.profiles.windows": { "Git Bash": { "source": "Git Bash" } },');
+        log.info('  "terminal.integrated.defaultProfile.windows": "Git Bash"');
+      }
 
       const wslAns = await ask('     Enable WSL now for Zsh support? (requires a restart) [Y/n]: ');
       if (wslAns.trim().toLowerCase() !== 'n') {
@@ -469,7 +421,11 @@ async function main() {
       } else {
         log.done('Git Bash detected');
       }
-      if (gitBashPath) setVSCodeTerminal('Git Bash', gitBashPath);
+      if (gitBashPath) {
+        log.info('To set Git Bash as your VSCode terminal, add this to VSCode settings.json (Ctrl+Shift+P → "Open User Settings JSON"):');
+        log.info('  "terminal.integrated.profiles.windows": { "Git Bash": { "source": "Git Bash" } },');
+        log.info('  "terminal.integrated.defaultProfile.windows": "Git Bash"');
+      }
     }
 
   } else {
@@ -537,7 +493,10 @@ async function main() {
         log.done('Oh My Zsh already installed');
       }
 
-      setVSCodeTerminal('zsh', zshPath);
+      const profileKey = isMac ? 'osx' : 'linux';
+      log.info('To set Zsh as your VSCode terminal, add this to VSCode settings.json (Ctrl+Shift+P → "Open User Settings JSON"):');
+      log.info(`  "terminal.integrated.profiles.${profileKey}": { "zsh": { "path": "${zshPath}" } },`);
+      log.info(`  "terminal.integrated.defaultProfile.${profileKey}": "zsh"`);
     }
   }
   log.nl();
